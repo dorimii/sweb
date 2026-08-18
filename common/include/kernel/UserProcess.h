@@ -1,8 +1,12 @@
 #pragma once
 
+#include "Loader.h"
 #include "Thread.h"
+#include "fs/FileSystemInfo.h"
+#include <uvector.h>
 
-class UserProcess : public Thread
+// tight now every process is one thread
+class UserProcess
 {
   public:
     /**
@@ -16,9 +20,25 @@ class UserProcess : public Thread
 
     virtual ~UserProcess();
 
+    void setWorkingDirInfo(FileSystemInfo* working_dir);
+
+    FileSystemInfo* getWorkingDirInfo();
+
+    Loader* getLoader() {return loader_;};
+
+    void addThread(Thread* thread) {threads_.push_back(thread);};
+    void removeThread(Thread* thread);
+
     virtual void Run(); // not used
 
   private:
     int32 fd_;
+
+    Loader* loader_;
+
+    ustl::vector<Thread*> threads_;
+
+  protected:
+    FileSystemInfo* working_dir_;
 };
 

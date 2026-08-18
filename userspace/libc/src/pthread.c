@@ -189,3 +189,8 @@ int pthread_setcanceltype(int type, int *oldtype)
   return -1;
 }
 
+// from tutorial
+int get_thread_count(void) {
+  return __syscall(sc_threadcount, 0x0, 0x0, 0x0, 0x0, 0x0);
+}
+

@@ -27,6 +27,9 @@ class Scheduler
     void incTicks();
     size_t getTicks();
 
+    // from tutorial
+    uint32 getThreadCount();
+
     /**
      * NEVER EVER EVER CALL THIS METHOD OUTSIDE OF AN INTERRUPT CONTEXT
      * this is the method that decides which threads will be scheduled next

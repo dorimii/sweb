@@ -29,12 +29,12 @@ extern "C" void threadStartHack()
   while(1);
 }
 
-Thread::Thread(FileSystemInfo *working_dir, ustl::string name, Thread::TYPE type) :
-    kernel_registers_(0), user_registers_(0), switch_to_userspace_(type == Thread::USER_THREAD ? 1 : 0), loader_(0),
-    next_thread_in_lock_waiters_list_(0), lock_waiting_on_(0), holding_lock_list_(0), state_(Running), tid_(0),
-    my_terminal_(0), working_dir_(working_dir), name_(ustl::move(name))
+Thread::Thread(ustl::string name, Thread::TYPE type, UserProcess* process) :
+    kernel_registers_(0), user_registers_(0), switch_to_userspace_(type == Thread::USER_THREAD ? 1 : 0),
+    next_thread_in_lock_waiters_list_(0), lock_waiting_on_(0), holding_lock_list_(0), state_(Running), tid_(0), user_process_(process),
+    user_stack_ptr_(0), my_terminal_(0), name_(ustl::move(name))
 {
-  debug(THREAD, "Thread ctor, this is %p, stack is %p, fs_info ptr: %p\n", this, kernel_stack_, working_dir_);
+  debug(THREAD, "Thread ctor, this is %p, stack is %p\n", this, kernel_stack_);
   ArchThreads::createKernelRegisters(kernel_registers_, (void*) (type == Thread::USER_THREAD ? 0 : threadStartHack), getKernelStackStartPointer());
   kernel_stack_[2047] = STACK_CANARY;
   kernel_stack_[0] = STACK_CANARY;
@@ -43,10 +43,17 @@ Thread::Thread(FileSystemInfo *working_dir, ustl::string name, Thread::TYPE type
 Thread::~Thread()
 {
   debug(THREAD, "~Thread: freeing ThreadInfos\n");
+
+  if (user_process_) {
+    user_process_->removeThread(this);
+    user_process_=nullptr;
+  }
+
   delete user_registers_;
   user_registers_ = 0;
   delete kernel_registers_;
   kernel_registers_ = 0;
+
   if(unlikely(holding_lock_list_ != 0))
   {
     debug(THREAD, "~Thread: ERROR: Thread <%s (%p)> is going to be destroyed, but still holds some locks!\n",
@@ -73,6 +80,7 @@ void Thread::kill()
   }
 }
 
+// top boundary of kernel stack
 void* Thread::getKernelStackStartPointer()
 {
   pointer stack = (pointer) kernel_stack_;
@@ -84,6 +92,8 @@ bool Thread::currentThreadIsStackCanaryOK()
 {
   return !currentThread || currentThread->isStackCanaryOK();
 }
+
+// detect overflows in kernel
 bool Thread::isStackCanaryOK()
 {
   return kernel_stack_[0] == STACK_CANARY && kernel_stack_[2047] == STACK_CANARY;
@@ -102,23 +112,6 @@ void Thread::setTerminal(Terminal *my_term)
 void Thread::printBacktrace()
 {
   printBacktrace(currentThread != this);
-}
-
-FileSystemInfo* Thread::getWorkingDirInfo()
-{
-  return working_dir_;
-}
-
-FileSystemInfo* getcwd()
-{
-  if (FileSystemInfo* info = currentThread->getWorkingDirInfo())
-    return info;
-  return default_working_dir;
-}
-
-void Thread::setWorkingDirInfo(FileSystemInfo* working_dir)
-{
-  working_dir_ = working_dir;
 }
 
 extern Stabs2DebugInfo const *kernel_debug_info;
@@ -147,7 +140,7 @@ void Thread::printBacktrace(bool use_stored_registers)
   }
   if(user_registers_)
   {
-    Stabs2DebugInfo const *deb = loader_->getDebugInfos();
+    Stabs2DebugInfo const *deb = user_process_? user_process_->getLoader()->getDebugInfos(): nullptr;
     count = backtrace_user(call_stack, BACKTRACE_MAX_FRAMES, this, 0);
     debug(BACKTRACE, " ----- Userspace --------------------\n");
     if(!deb)
@@ -191,3 +184,16 @@ void Thread::setState(ThreadState new_state)
 
   state_ = new_state;
 }
+
+FileSystemInfo* getcwd()
+{
+  if (currentThread->getUserProcess())
+    return currentThread->getUserProcess()->getWorkingDirInfo();
+  return default_working_dir;
+}
+
+void Thread::Run()
+{
+  assert("Thread run was called directly!\n");
+}
+

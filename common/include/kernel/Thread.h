@@ -1,7 +1,8 @@
 #pragma once
 
 #include "types.h"
-#include "fs/FileSystemInfo.h"
+#include "UserProcess.h"
+
 
 #define STACK_CANARY ((uint32)0xDEADDEAD ^ (uint32)(size_t)this)
 
@@ -29,11 +30,10 @@ class Thread
 
     /**
      * Constructor for a new thread with a given working directory, name and type
-     * @param working_dir working directory information for the new Thread
      * @param name The name of the thread
      * @param type The type of the thread (user or kernel thread)
      */
-    Thread(FileSystemInfo* working_dir, ustl::string name, Thread::TYPE type);
+    Thread(ustl::string name, Thread::TYPE type, UserProcess* process = nullptr);
 
     virtual ~Thread();
 
@@ -46,7 +46,7 @@ class Thread
     /**
      * runs whatever the user wants it to run;
      */
-    virtual void Run() = 0;
+    virtual void Run();
 
     void* getKernelStackStartPointer();
 
@@ -62,9 +62,11 @@ class Thread
 
     void setTerminal(Terminal *my_term);
 
-    FileSystemInfo* getWorkingDirInfo();
+    UserProcess* getUserProcess() const {return user_process_;}
+    void setUserProcess(UserProcess *process) {user_process_ = process;};
 
-    void setWorkingDirInfo(FileSystemInfo* working_dir);
+    void* getUserStackPointer() const {return user_stack_ptr_;};
+    void setUserStackPointer(void* ptr) {user_stack_ptr_ = ptr;};
 
     /**
      * Prints a backtrace (i.e. the call stack) to the debug output.
@@ -85,9 +87,6 @@ class Thread
     ArchThreadRegisters* user_registers_;
 
     uint32 switch_to_userspace_;
-
-    Loader* loader_;
-
 
     void setState(ThreadState state);
 
@@ -119,12 +118,14 @@ class Thread
 
     size_t tid_;
 
+    UserProcess* user_process_;
+
+    void* user_stack_ptr_;
+
     Terminal* my_terminal_;
 
   protected:
     ThreadState getState() const;
-
-    FileSystemInfo* working_dir_;
 
     ustl::string name_;
 

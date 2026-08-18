@@ -17,3 +17,6 @@
 #define sc_createprocess 191
 #define sc_trace 252
 
+// from turolial
+#define sc_threadcount 2048
+

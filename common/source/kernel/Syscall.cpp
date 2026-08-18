@@ -49,6 +49,10 @@ size_t Syscall::syscallException(size_t syscall_number, size_t arg1, size_t arg2
     case sc_pseudols:
       pseudols((const char*) arg1, (char*) arg2, arg3);
       break;
+    // from tutorial
+    case sc_threadcount:
+      return_value = get_thread_count();
+      break;
     default:
       return_value = -1;
       kprintf("Syscall::syscallException: Unimplemented Syscall Number %zd\n", syscall_number);
@@ -179,5 +183,10 @@ size_t Syscall::createprocess(size_t path, size_t sleep)
 void Syscall::trace()
 {
   currentThread->printBacktrace();
+}
+
+// from tutorial
+uint32 Syscall::get_thread_count() {
+  return Scheduler::instance()->getThreadCount();
 }
 
