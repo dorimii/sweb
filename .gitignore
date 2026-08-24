@@ -26,3 +26,9 @@ cmake-build-*/*
 # OS-specific files
 *.DS_Store
 *Thumbs.db
+
+# Tortillas venv
+venv
+
+# Private
+run_sweb.sh
