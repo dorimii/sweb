@@ -98,6 +98,8 @@ Thread::~Thread()
     assert(false);
   }
 
+  delete my_process_;
+
   debug(THREAD, "~Thread: done (%s)\n", name_.c_str());
 }
 
