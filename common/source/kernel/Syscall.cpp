@@ -1,5 +1,8 @@
 #include "offsets.h"
 #include "Syscall.h"
+
+#include "CleanupThread.h"
+#include "CleanupThread.h"
 #include "syscall-definitions.h"
 #include "Terminal.h"
 #include "debug_bochs.h"
@@ -7,6 +10,7 @@
 #include "ProcessRegistry.h"
 #include "File.h"
 #include "Scheduler.h"
+#include "../../../userspace/libc/include/pthread.h"
 
 size_t Syscall::syscallException(size_t syscall_number, size_t arg1, size_t arg2, size_t arg3, size_t arg4, size_t arg5)
 {
@@ -48,6 +52,9 @@ size_t Syscall::syscallException(size_t syscall_number, size_t arg1, size_t arg2
       break;
     case sc_pseudols:
       pseudols((const char*) arg1, (char*) arg2, arg3);
+      break;
+    case sc_pthread_create:
+      return_value = pthread_create((pthread_t*)arg1, (void*) arg2, (const pthread_attr_t*)arg3, (void* (*) (void*))arg4, (void*)arg5);
       break;
     // from tutorial
     case sc_threadcount:
@@ -183,6 +190,28 @@ size_t Syscall::createprocess(size_t path, size_t sleep)
 void Syscall::trace()
 {
   currentThread->printBacktrace();
+}
+
+int Syscall::pthread_create(pthread_t* thread, void* wrapper, const pthread_attr_t* attr, void *(*start_routine)(void *), void *arg)
+{
+  // create a new thread for this process
+  UserProcess* current_process = currentThread->getUserProcess();
+
+  // allocate new stack for the thread
+  current_process->getLoader()->
+
+  // make new thread
+  Thread* new_thread = new Thread()
+
+  // set the registers correctly! in the new thread constructor!
+
+  // add thread to process list
+  current_process->addThread(new_thread);
+
+  // give thread to scheduler
+  Scheduler::instance()->addThread(new_thread);
+
+  // return thread id
 }
 
 // from tutorial

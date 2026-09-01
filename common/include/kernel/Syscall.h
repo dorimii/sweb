@@ -2,6 +2,9 @@
 
 #include <types.h>
 
+#include "CleanupThread.h"
+#include "CleanupThread.h"
+
 class Syscall
 {
   public:
@@ -18,6 +21,8 @@ class Syscall
 
     static size_t createprocess(size_t path, size_t sleep);
     static void trace();
+
+    static int pthread_create(pthread_t* thread, void* wrapper, const pthread_attr_t* attr, void *(*start_routine)(void *), void *arg);
 
     // from tutorial
     static uint32 get_thread_count();

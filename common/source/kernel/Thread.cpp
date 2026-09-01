@@ -40,6 +40,19 @@ Thread::Thread(ustl::string name, Thread::TYPE type, UserProcess* process) :
   kernel_stack_[0] = STACK_CANARY;
 }
 
+// constructor for pthread create
+Thread::Thread(UserProcess* process,  void* wrapper, const pthread_attr_t* attr, void *(*start_routine)(void *), void *arg) :
+    kernel_registers_(0), user_registers_(0), switch_to_userspace_(1),
+    next_thread_in_lock_waiters_list_(0), lock_waiting_on_(0), holding_lock_list_(0), state_(Running), tid_(0), user_process_(process),
+    user_stack_ptr_(0), my_terminal_(0), name_(0)
+{
+  debug(THREAD, "Thread ctor, this is %p, stack is %p\n", this, kernel_stack_);
+  ArchThreads::createKernelRegisters(kernel_registers_, wrapper, getKernelStackStartPointer());
+  kernel_stack_[2047] = STACK_CANARY;
+  kernel_stack_[0] = STACK_CANARY;
+
+}
+
 Thread::~Thread()
 {
   debug(THREAD, "~Thread: freeing ThreadInfos\n");
