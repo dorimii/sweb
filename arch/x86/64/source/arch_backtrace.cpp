@@ -1,4 +1,5 @@
 #include "kprintf.h"
+#include "UserProcess.h"
 #include "Thread.h"
 #include "backtrace.h"
 #include "InterruptUtils.h"
@@ -71,7 +72,7 @@ int backtrace_user(pointer *call_stack, int size, Thread *thread, bool /*use_sto
   }
   void *rbp = (void*)thread->user_registers_->rbp;
   StackFrame *CurrentFrame = (StackFrame*)rbp;
-  StackFrame *CurrentFrameI = (StackFrame*)thread->loader_->arch_memory_.checkAddressValid((pointer)rbp);
+  StackFrame *CurrentFrameI = (StackFrame*)thread->getUserProcess()->loader_->arch_memory_.checkAddressValid((pointer)rbp);
 
   // the userspace stack is allowed to be anywhere in userspace
   void *StackStart = (void*)(USER_BREAK - 1);
@@ -94,7 +95,7 @@ int backtrace_user(pointer *call_stack, int size, Thread *thread, bool /*use_sto
     pointer return_address;
     if ((((pointer)CurrentFrameI)-sizeof(pointer))%PAGE_SIZE == 0)
     {
-      auto return_ptr = (pointer *)thread->loader_->arch_memory_.checkAddressValid((pointer)&CurrentFrameI->return_address);
+      auto return_ptr = (pointer *)thread->getUserProcess()->loader_->arch_memory_.checkAddressValid((pointer)&CurrentFrameI->return_address);
       return_address = return_ptr ? *return_ptr : 0;
     }
     else
@@ -109,7 +110,7 @@ int backtrace_user(pointer *call_stack, int size, Thread *thread, bool /*use_sto
 
     CurrentFrame = CurrentFrameI->previous_frame;
 
-    CurrentFrameI = (StackFrame*)thread->loader_->arch_memory_.checkAddressValid((pointer)CurrentFrameI->previous_frame);
+    CurrentFrameI = (StackFrame*)thread->getUserProcess()->loader_->arch_memory_.checkAddressValid((pointer)CurrentFrameI->previous_frame);
   }
 
   return i;

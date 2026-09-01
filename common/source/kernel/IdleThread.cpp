@@ -2,7 +2,7 @@
 #include "Scheduler.h"
 #include "ArchCommon.h"
 
-IdleThread::IdleThread() : Thread(0, "IdleThread", Thread::KERNEL_THREAD)
+IdleThread::IdleThread() : Thread((FileSystemInfo*)0, "IdleThread", Thread::KERNEL_THREAD)
 {
 }
 

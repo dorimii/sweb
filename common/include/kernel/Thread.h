@@ -11,12 +11,12 @@ extern SystemState system_state;
 
 class Thread;
 class ArchThreadRegisters;
-class Loader;
-class Terminal;
 class Mutex;
 class Lock;
+class UserProcess;
 
 extern Thread* currentThread;
+extern FileSystemInfo* default_working_dir;
 
 class Thread
 {
@@ -33,7 +33,8 @@ class Thread
      * @param name The name of the thread
      * @param type The type of the thread (user or kernel thread)
      */
-    Thread(FileSystemInfo* working_dir, ustl::string name, Thread::TYPE type);
+    Thread(UserProcess* process, ustl::string name, Thread::TYPE type);
+    Thread(FileSystemInfo* working_dir_, ustl::string name, Thread::TYPE type);
 
     virtual ~Thread();
 
@@ -46,7 +47,10 @@ class Thread
     /**
      * runs whatever the user wants it to run;
      */
-    virtual void Run() = 0;
+    virtual void Run();
+
+    FileSystemInfo* getWorkingDirInfo();
+    void setWorkingDirInfo(FileSystemInfo* working_dir);
 
     void* getKernelStackStartPointer();
 
@@ -58,13 +62,13 @@ class Thread
 
     size_t getTID();
 
-    Terminal* getTerminal();
+    UserProcess* getUserProcess() const {
+      return my_process_;
+    }
 
-    void setTerminal(Terminal *my_term);
-
-    FileSystemInfo* getWorkingDirInfo();
-
-    void setWorkingDirInfo(FileSystemInfo* working_dir);
+    bool isUserThread() const {
+      return my_process_ != nullptr;
+    }
 
     /**
      * Prints a backtrace (i.e. the call stack) to the debug output.
@@ -85,9 +89,6 @@ class Thread
     ArchThreadRegisters* user_registers_;
 
     uint32 switch_to_userspace_;
-
-    Loader* loader_;
-
 
     void setState(ThreadState state);
 
@@ -111,6 +112,8 @@ class Thread
      */
     Lock* holding_lock_list_;
 
+    FileSystemInfo* working_dir_;
+
   private:
     Thread(Thread const &src);
     Thread &operator=(Thread const &src);
@@ -119,12 +122,10 @@ class Thread
 
     size_t tid_;
 
-    Terminal* my_terminal_;
+    UserProcess* const my_process_;
 
   protected:
     ThreadState getState() const;
-
-    FileSystemInfo* working_dir_;
 
     ustl::string name_;
 
