@@ -4,7 +4,10 @@
 #include "ustl/ustring.h"
 #include "ustl/uvector.h"
 
+#include "UserThread.h"
+
 class Thread;
+class UserThread;
 class Loader;
 class FileSystemInfo;
 class Terminal;
@@ -32,10 +35,10 @@ class UserProcess
 
     void* allocateUserStack();
 
-    void addThread(Thread* thread);
-    void removeThread(Thread* thread);
+    void addThread(UserThread* thread);
+    void removeThread(UserThread* thread);
 
-    ustl::vector<Thread*> getThreadList() const {
+    ustl::vector<UserThread*> getThreadList() const {
       return thread_list_;
     }
 
@@ -50,6 +53,6 @@ class UserProcess
 
     FileSystemInfo* working_dir_;
 
-    ustl::vector<Thread*> thread_list_;
+    ustl::vector<UserThread*> thread_list_;
 };
 

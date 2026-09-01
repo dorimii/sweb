@@ -1,5 +1,5 @@
 #include "Thread.h"
-#include "UserProcess.h"
+
 #include "kprintf.h"
 #include "ArchThreads.h"
 #include "ArchInterrupts.h"
@@ -13,6 +13,8 @@
 
 #define BACKTRACE_MAX_FRAMES 20
 
+
+
 const char* Thread::threadStatePrintable[3] =
 {
 "Running", "Sleeping", "ToBeDestroyed"
@@ -20,7 +22,7 @@ const char* Thread::threadStatePrintable[3] =
 
 extern "C" void threadStartHack()
 {
-  if (currentThread->getUserProcess()) currentThread->getUserProcess()->setTerminal(main_console->getActiveTerminal());
+  currentThread->setTerminal(main_console->getActiveTerminal());
   currentThread->Run();
   currentThread->kill();
   debug(THREAD, "ThreadStartHack: Panic, thread couldn't be killed\n");
@@ -28,59 +30,14 @@ extern "C" void threadStartHack()
 }
 
 Thread::Thread(FileSystemInfo *working_dir, ustl::string name, Thread::TYPE type) :
-  kernel_registers_(0),
-  user_registers_(0),
-  switch_to_userspace_(type == Thread::USER_THREAD ? 1 : 0),
-  next_thread_in_lock_waiters_list_(0),
-  lock_waiting_on_(0),
-  holding_lock_list_(0),
-  working_dir_(working_dir),
-  state_(Running),
-  tid_(0),
-  my_process_(0),
-  name_(ustl::move(name))
+    kernel_registers_(0), user_registers_(0), switch_to_userspace_(type == Thread::USER_THREAD ? 1 : 0), loader_(0),
+    next_thread_in_lock_waiters_list_(0), lock_waiting_on_(0), holding_lock_list_(0), state_(Running), tid_(0),
+    my_terminal_(0), working_dir_(working_dir), name_(ustl::move(name))
 {
   debug(THREAD, "Thread ctor, this is %p, stack is %p, fs_info ptr: %p\n", this, kernel_stack_, working_dir_);
   ArchThreads::createKernelRegisters(kernel_registers_, (void*) (type == Thread::USER_THREAD ? 0 : threadStartHack), getKernelStackStartPointer());
   kernel_stack_[2047] = STACK_CANARY;
   kernel_stack_[0] = STACK_CANARY;
-}
-
-Thread::Thread(UserProcess* process, ustl::string name, Thread::TYPE type) :
-  kernel_registers_(0),
-  user_registers_(0),
-  switch_to_userspace_(type == Thread::USER_THREAD ? 1 : 0),
-  next_thread_in_lock_waiters_list_(0),
-  lock_waiting_on_(0),
-  holding_lock_list_(0),
-  working_dir_(0),
-  state_(Running),
-  tid_(0),
-  my_process_(process),
-  name_(ustl::move(name))
-{
-  debug(THREAD, "Thread ctor, this is %p, stack is %p, process: %p\n", this, kernel_stack_, my_process_);
-  ArchThreads::createKernelRegisters(kernel_registers_, (void*) (type == Thread::USER_THREAD ? 0 : threadStartHack), getKernelStackStartPointer());
-  kernel_stack_[2047] = STACK_CANARY;
-  kernel_stack_[0] = STACK_CANARY;
-
-  if(type == Thread::USER_THREAD){
-    assert(my_process_ != nullptr && "[Error]: Thread needs to have a process.");
-    assert(my_process_->loader_ && "[Error]: Process must have a valid loader.");
-
-    void* stack_top = my_process_->allocateUserStack();
-
-    ArchThreads::createUserRegisters(
-      user_registers_, 
-      my_process_->loader_->getEntryFunction(),
-      stack_top,
-      getKernelStackStartPointer()
-    );
-
-    ArchThreads::setAddressSpace(this, my_process_->loader_->arch_memory_);
-
-    switch_to_userspace_ = 1;
-  }
 }
 
 Thread::~Thread()
@@ -97,9 +54,6 @@ Thread::~Thread()
     Lock::printHoldingList(this);
     assert(false);
   }
-
-  delete my_process_;
-
   debug(THREAD, "~Thread: done (%s)\n", name_.c_str());
 }
 
@@ -135,24 +89,36 @@ bool Thread::isStackCanaryOK()
   return kernel_stack_[0] == STACK_CANARY && kernel_stack_[2047] == STACK_CANARY;
 }
 
+Terminal *Thread::getTerminal()
+{
+  return my_terminal_ ? my_terminal_ : main_console->getActiveTerminal();
+}
+
+void Thread::setTerminal(Terminal *my_term)
+{
+  my_terminal_ = my_term;
+}
+
 void Thread::printBacktrace()
 {
   printBacktrace(currentThread != this);
 }
 
-void Thread::setWorkingDirInfo(FileSystemInfo* working_dir)
-{
-  working_dir_ = working_dir;
-}
-
 FileSystemInfo* Thread::getWorkingDirInfo()
 {
-  return my_process_ ? my_process_->getWorkingDirInfo() : working_dir_;
+  return working_dir_;
 }
 
 FileSystemInfo* getcwd()
 {
-  return currentThread ? currentThread->getWorkingDirInfo() : default_working_dir;
+  if (FileSystemInfo* info = currentThread->getWorkingDirInfo())
+    return info;
+  return default_working_dir;
+}
+
+void Thread::setWorkingDirInfo(FileSystemInfo* working_dir)
+{
+  working_dir_ = working_dir;
 }
 
 extern Stabs2DebugInfo const *kernel_debug_info;
@@ -179,9 +145,9 @@ void Thread::printBacktrace(bool use_stored_registers)
         kernel_debug_info->printCallInformation(call_stack[i]);
     }
   }
-  if(user_registers_ && my_process_ && my_process_->loader_)
+  if(user_registers_)
   {
-    Stabs2DebugInfo const *deb = my_process_->loader_->getDebugInfos();
+    Stabs2DebugInfo const *deb = loader_->getDebugInfos();
     count = backtrace_user(call_stack, BACKTRACE_MAX_FRAMES, this, 0);
     debug(BACKTRACE, " ----- Userspace --------------------\n");
     if(!deb)
@@ -224,9 +190,4 @@ void Thread::setState(ThreadState new_state)
   assert(!((new_state == Sleeping) && (currentThread != this)) && "Setting other threads to sleep is not thread-safe");
 
   state_ = new_state;
-}
-
-void Thread::Run()
-{
-  assert(false && "Thread::Run() called on base Thread - override in kernel subclass or execute in userspace");
 }

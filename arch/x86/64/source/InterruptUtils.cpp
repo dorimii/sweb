@@ -328,10 +328,10 @@ extern "C" void errorHandler(size_t num, size_t eip, size_t cs, size_t spurious)
   ArchThreadRegisters* registers_ = currentThread->kernel_registers_;
   if (userspace)
   {
-    assert(currentThread->getUserProcess()->loader_ && "User Threads need to have a Loader");
+    assert(currentThread->loader_ && "User Threads need to have a Loader");
     assert(currentThread->user_registers_ && (currentThread->user_registers_->cr3 == currentThread->kernel_registers_->cr3 &&
            "User and Kernel CR3 register values differ, this most likely is a bug!"));
-    deb = currentThread->getUserProcess()->loader_->getDebugInfos();
+    deb = currentThread->loader_->getDebugInfos();
     registers_ = currentThread->user_registers_;
   }
   if(deb && registers_->rip)

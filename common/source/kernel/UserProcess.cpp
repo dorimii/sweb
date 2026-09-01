@@ -30,10 +30,11 @@ UserProcess::UserProcess(ustl::string filename, FileSystemInfo *fs_info, uint32 
     return;
   }
 
-  Thread* main_thread = new Thread(this, filename, Thread::USER_THREAD);
+  UserThread* main_thread = new UserThread(this, filename, loader_);
   addThread(main_thread);
 
-  Scheduler::instance()->addNewThread(main_thread);
+  Thread* thread = main_thread;
+  Scheduler::instance()->addNewThread(thread);
 
   debug(USERPROCESS, "ctor: Done loading %s\n", filename.c_str());
 }
@@ -77,11 +78,11 @@ UserProcess::~UserProcess()
   ProcessRegistry::instance()->processExit();
 }
 
-void UserProcess::addThread(Thread* thread){
+void UserProcess::addThread(UserThread* thread){
   thread_list_.push_back(thread);
 }
 
-void UserProcess::removeThread(Thread* thread)
+void UserProcess::removeThread(UserThread* thread)
 {
   auto it = ustl::find(thread_list_.begin(), thread_list_.end(), thread);
   if (it != thread_list_.end()){

@@ -73,7 +73,7 @@ void Syscall::pseudols(const char *pathname, char *buffer, size_t size)
 void Syscall::exit(size_t exit_code)
 {
   debug(SYSCALL, "Syscall::EXIT: called, exit_code: %zd\n", exit_code);
-  UserProcess* process = currentThread->getUserProcess();
+  UserProcess* process = ((UserThread*)currentThread)->getUserProcess();
   if(process){
     for(auto thread : process->getThreadList()){
       if(thread != currentThread) thread->kill();
@@ -118,7 +118,7 @@ size_t Syscall::read(size_t fd, pointer buffer, size_t count)
   if (fd == fd_stdin)
   {
     //this doesn't! terminate a string with \0, gotta do that yourself
-    num_read = currentThread->getUserProcess()->getTerminal()->readLine((char*) buffer, count);
+    num_read = ((UserThread*)currentThread)->getUserProcess()->getTerminal()->readLine((char*) buffer, count);
     debug(SYSCALL, "Syscall::read: %.*s\n", (int)num_read, (char*) buffer);
   }
   else
