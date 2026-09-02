@@ -113,6 +113,8 @@ class Thread
      */
     Lock* holding_lock_list_;
 
+    virtual bool isUserThread() const { return false; }
+
   private:
     Thread(Thread const &src);
     Thread &operator=(Thread const &src);

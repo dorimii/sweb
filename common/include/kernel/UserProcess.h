@@ -6,6 +6,7 @@
 
 #include "UserThread.h"
 #include "Mutex.h"
+#include "ScopeLock.h"
 
 class Thread;
 class UserThread;
@@ -36,12 +37,13 @@ class UserProcess
 
     void* allocateUserStack();
 
-    void addThread(UserThread* thread);
-    void removeThread(UserThread* thread);
+    bool addThread(UserThread* thread);
+    bool removeThread(UserThread* thread);
+    void removeRemainingThreads();
 
-    ustl::vector<UserThread*> getThreadList() const {
-      return thread_list_;
-    }
+    void markAsTerminating();
+
+    ustl::vector<UserThread*> getThreadList();
 
     size_t pid_;
 
@@ -52,6 +54,7 @@ class UserProcess
 
     size_t getTid() {return max_tid_;}
     void incrementTid() {max_tid_++;}
+    Mutex mutex_thread_list_{"MUTEX_THREAD_LIST"};
 
   private:
     int32 fd_;
@@ -60,8 +63,11 @@ class UserProcess
 
     FileSystemInfo* working_dir_;
 
+    bool isTerminating{false};
+
     ustl::vector<UserThread*> thread_list_;
 
     size_t max_tid_;
+    size_t threads_created{0}; //Temporary till SLR is implemented
 };
 

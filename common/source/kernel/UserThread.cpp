@@ -66,10 +66,9 @@ UserThread::UserThread(UserProcess* process, ustl::string name, Loader* loader, 
 }
 
 UserThread::~UserThread(){
-  // FIX RACECONDITION
-  my_process_->removeThread(this);
-  if(my_process_ && my_process_->getThreadList().size() == 0){
+  if(my_process_ && my_process_->removeThread(this)){
     delete my_process_;
+    my_process_ = nullptr;
   }
 }
 
