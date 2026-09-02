@@ -50,6 +50,9 @@ size_t Syscall::syscallException(size_t syscall_number, size_t arg1, size_t arg2
     case sc_pseudols:
       pseudols((const char*) arg1, (char*) arg2, arg3);
       break;
+    case sc_pthread_create:
+      return_value = pthread_create(arg1, arg2, arg3, arg4, arg5);
+      break;
     case sc_tortillas_bootup:
     case sc_tortillas_finished:
       return_value = 0;
@@ -190,5 +193,27 @@ size_t Syscall::createprocess(size_t path, size_t sleep)
 void Syscall::trace()
 {
   currentThread->printBacktrace();
+}
+
+int Syscall::pthread_create(size_t thread, size_t wrapper, size_t attr, size_t start_routine, size_t arg)
+{
+  if (attr!= 0) {
+    debug(SYSCALL, "Syscall::pthread_create: attr: %zd\n but should be null for now", attr);
+  }
+
+  UserProcess* current_process = ((UserThread*)currentThread)->getUserProcess();
+
+  UserThread* new_thread = new UserThread(current_process, "pthread", current_process->loader_, (void*)wrapper, (void*)start_routine, (void*)arg);
+  current_process->addThread(new_thread);
+
+  size_t tid = new_thread->getTID();
+
+  if (thread != 0) {
+    *(size_t*)thread = tid;
+  }
+
+  Scheduler::instance()->addNewThread(new_thread);
+
+  return 0;
 }
 

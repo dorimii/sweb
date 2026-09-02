@@ -1,5 +1,14 @@
 #include "pthread.h"
 
+#include "syscall.h"
+#include "../../../common/include/kernel/syscall-definitions.h"
+
+void pthread_create_wrapper(void* (*start_routine)(void *), void *arg)
+{
+  void* ret_value = start_routine(arg);
+  pthread_exit((void*)ret_value);
+}
+
 /**
  * function stub
  * posix compatible signature - do not change the signature!
@@ -7,7 +16,7 @@
 int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
                    void *(*start_routine)(void *), void *arg)
 {
-  return -1;
+  return __syscall(sc_pthread_create, (size_t)thread, (size_t)pthread_create_wrapper, (size_t)attr, (size_t)start_routine, (size_t)arg);
 }
 
 /**

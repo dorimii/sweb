@@ -2,6 +2,7 @@
 
 #include <types.h>
 
+
 class Syscall
 {
   public:
@@ -18,5 +19,7 @@ class Syscall
 
     static size_t createprocess(size_t path, size_t sleep);
     static void trace();
+
+    static int pthread_create(size_t thread, size_t wrapper, size_t attr, size_t start_routine, size_t arg);
 };
 

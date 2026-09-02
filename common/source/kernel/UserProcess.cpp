@@ -12,7 +12,7 @@
 #include "ustl/ualgo.h"
 
 UserProcess::UserProcess(ustl::string filename, FileSystemInfo *fs_info, uint32 terminal_number) : 
-  pid_(0), loader_(0), fd_(VfsSyscall::open(filename, O_RDONLY)), my_terminal_(0), working_dir_(fs_info)
+  pid_(0), loader_(0), mutex_tid_("UserProcess::mutex_tid_"), fd_(VfsSyscall::open(filename, O_RDONLY)), my_terminal_(0), working_dir_(fs_info),  max_tid_(0)
     // Thread(fs_info, filename, Thread::USER_THREAD), fd_(VfsSyscall::open(filename, O_RDONLY))
 {
   ProcessRegistry::instance()->processStart(); //should also be called if you fork a process

@@ -1,4 +1,5 @@
 #include "UserThread.h"
+#include "../../include/kernel/UserThread.h"
 
 #include "UserProcess.h"
 #include "kprintf.h"
@@ -28,6 +29,36 @@ UserThread::UserThread(UserProcess* process, ustl::string name, Loader* loader) 
     stack_top,
     getKernelStackStartPointer()
   );
+
+  ArchThreads::setAddressSpace(this, my_process_->loader_->arch_memory_);
+
+  switch_to_userspace_ = 1;
+}
+
+UserThread::UserThread(UserProcess* process, ustl::string name, Loader* loader, void* pthread_wrapper, void *start_routine, void *arg):
+    Thread(nullptr, name, Thread::USER_THREAD), my_process_(process)
+{
+  assert(my_process_ != nullptr && "[Error]: Thread needs to have a process.");
+  assert(my_process_->loader_ && "[Error]: Process must have a valid loader.");
+
+  loader_ = loader;
+
+  process->mutex_tid_.acquire();
+  setTID(process->getTid());
+  process->incrementTid();
+  process->mutex_tid_.release();
+
+  void* stack_top = my_process_->allocateUserStack();
+
+  ArchThreads::createUserRegisters(
+    user_registers_,
+    pthread_wrapper,
+    stack_top,
+    getKernelStackStartPointer()
+  );
+
+  user_registers_->rdi = (size_t)start_routine;
+  user_registers_->rsi = (size_t)arg;
 
   ArchThreads::setAddressSpace(this, my_process_->loader_->arch_memory_);
 

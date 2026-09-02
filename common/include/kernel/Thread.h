@@ -58,6 +58,8 @@ class Thread
 
     size_t getTID();
 
+    void setTID(size_t tid) {tid_ = tid;};
+
     Terminal* getTerminal();
 
     void setTerminal(Terminal *my_term);

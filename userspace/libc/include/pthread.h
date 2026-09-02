@@ -21,6 +21,8 @@ typedef unsigned int pthread_spinlock_t;
 typedef unsigned int pthread_cond_t;
 typedef unsigned int pthread_condattr_t;
 
+extern void pthread_create_wrapper(void* (*start_routine)(void*), void* arg);
+
 extern int pthread_create(pthread_t *thread,
          const pthread_attr_t *attr, void *(*start_routine)(void *),
          void *arg);

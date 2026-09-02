@@ -5,6 +5,7 @@
 #include "ustl/uvector.h"
 
 #include "UserThread.h"
+#include "Mutex.h"
 
 class Thread;
 class UserThread;
@@ -46,6 +47,12 @@ class UserProcess
 
     Loader* loader_;
 
+
+    Mutex mutex_tid_;
+
+    size_t getTid() {return max_tid_;}
+    void incrementTid() {max_tid_++;}
+
   private:
     int32 fd_;
 
@@ -54,5 +61,7 @@ class UserProcess
     FileSystemInfo* working_dir_;
 
     ustl::vector<UserThread*> thread_list_;
+
+    size_t max_tid_;
 };
 

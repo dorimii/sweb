@@ -20,6 +20,8 @@ class UserThread : public Thread
   public:
     UserThread(UserProcess* process, ustl::string name, Loader* loader);
 
+    UserThread(UserProcess* process, ustl::string name, Loader* loader, void* entry_function, void *start_routine, void *arg);
+
     virtual ~UserThread();
 
      /**
