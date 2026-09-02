@@ -62,7 +62,6 @@ void UserProcess::setTerminal(Terminal *my_term)
 UserProcess::~UserProcess()
 {
   assert(Scheduler::instance()->isCurrentlyCleaningUp());
-  thread_list_.clear();
 
   delete loader_;
   loader_ = 0;
@@ -78,25 +77,53 @@ UserProcess::~UserProcess()
   ProcessRegistry::instance()->processExit();
 }
 
-void UserProcess::addThread(UserThread* thread){
+bool UserProcess::addThread(UserThread* thread){
+  ScopeLock lock(mutex_thread_list_);
+  if(isTerminating) return false;
+
   thread_list_.push_back(thread);
+  return true;
 }
 
-void UserProcess::removeThread(UserThread* thread)
+bool UserProcess::removeThread(UserThread* thread)
 {
-  auto it = ustl::find(thread_list_.begin(), thread_list_.end(), thread);
-  if (it != thread_list_.end()){
-    thread_list_.erase(it);
+  ScopeLock lock(mutex_thread_list_);
+  for(auto it = thread_list_.begin(); it != thread_list_.end(); ++it){
+    if(*it == thread){
+      thread_list_.erase(it);
+      break;
+    }
+  }
+  return thread_list_.empty();
+}
+
+void UserProcess::removeRemainingThreads(){
+  ScopeLock lock(mutex_thread_list_);
+  for(auto thread : thread_list_){
+    if(thread != currentThread){
+      thread->kill();
+    }
   }
 }
 
 // allocates 1 page atm + 1 guard page
 void* UserProcess::allocateUserStack(){
-  size_t stack_vpn = ((USER_BREAK / PAGE_SIZE) - 1) - (thread_list_.size() * 2); // allocate 1 page + 1 guard page
+  ScopeLock lock(mutex_thread_list_);
+  size_t stack_vpn = ((USER_BREAK / PAGE_SIZE) - 1) - (++threads_created * 2); // allocate 1 page + 1 guard page
   size_t page_for_stack = PageManager::instance()->allocPPN();
   bool vpn_mapped = loader_->arch_memory_.mapPage(stack_vpn, page_for_stack, 1);
   assert(vpn_mapped && "Virtual page for stack was already mapped - this should never happen");
 
   return (void*)((stack_vpn + 1) * PAGE_SIZE - sizeof(pointer));
+}
+
+ustl::vector<UserThread*> UserProcess::getThreadList() {
+  ScopeLock lock(mutex_thread_list_);
+  return thread_list_;
+}
+
+void UserProcess::markAsTerminating(){
+  ScopeLock lock(mutex_thread_list_);
+  isTerminating = true;
 }
 

@@ -31,10 +31,12 @@ class UserThread : public Thread
       return my_process_;
     }
 
+    virtual bool isUserThread() const { return true; }
+
   private:
     UserThread(UserThread const &src);
     UserThread &operator=(UserThread const &src);
 
-    UserProcess* const my_process_;
+    UserProcess* my_process_;
 };
 

@@ -8,6 +8,7 @@
 #include "File.h"
 #include "Scheduler.h"
 #include "UserProcess.h"
+#include "UserThread.h"
 
 size_t Syscall::syscallException(size_t syscall_number, size_t arg1, size_t arg2, size_t arg3, size_t arg4, size_t arg5)
 {
@@ -73,11 +74,10 @@ void Syscall::pseudols(const char *pathname, char *buffer, size_t size)
 void Syscall::exit(size_t exit_code)
 {
   debug(SYSCALL, "Syscall::EXIT: called, exit_code: %zd\n", exit_code);
-  UserProcess* process = ((UserThread*)currentThread)->getUserProcess();
-  if(process){
-    for(auto thread : process->getThreadList()){
-      if(thread != currentThread) thread->kill();
-    }
+
+  if(currentThread->isUserThread()){
+    UserProcess* process = ((UserThread*)currentThread)->getUserProcess();
+    if(process) process->removeRemainingThreads();
   }
   currentThread->kill();
   assert(false && "This should never happen");
@@ -117,8 +117,17 @@ size_t Syscall::read(size_t fd, pointer buffer, size_t count)
 
   if (fd == fd_stdin)
   {
+    Terminal* terminal = nullptr;
+
     //this doesn't! terminate a string with \0, gotta do that yourself
-    num_read = ((UserThread*)currentThread)->getUserProcess()->getTerminal()->readLine((char*) buffer, count);
+    if(currentThread->isUserThread()){
+      UserProcess* process = ((UserThread*)currentThread)->getUserProcess();
+      if(process) terminal = process->getTerminal();
+    }
+
+    if (!terminal) terminal = currentThread->getTerminal();
+
+    if(terminal) num_read = terminal->readLine((char*) buffer, count);
     debug(SYSCALL, "Syscall::read: %.*s\n", (int)num_read, (char*) buffer);
   }
   else
