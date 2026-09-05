@@ -59,6 +59,11 @@ void Scheduler::schedule()
     }
   }
 
+  // if cancelation true && switch_to_userspace = 1 && ASYNC
+  // set kernel reg RIP to pthread_exit + args
+  // set switch_to_userspace = 0
+  // check also where thread is
+
   assert(it != threads_.end() && "No schedulable thread found");
   ustl::rotate(threads_.begin(), it + 1, threads_.end()); // no new/delete here - important because interrupts are disabled
   //debug(SCHEDULER, "Scheduler::schedule: new currentThread is %p %s, switch_to_userspace: %d\n", currentThread, currentThread->getName(), currentThread->switch_to_userspace_);

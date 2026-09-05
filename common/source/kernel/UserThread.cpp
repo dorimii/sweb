@@ -77,3 +77,19 @@ void UserThread::Run()
   debug(USERPROCESS, "Run: Fail-safe kernel panic - you probably have forgotten to set switch_to_userspace_ = 1\n");
   assert(false);
 }
+
+CancelType UserThread::setCancelType(CancelType type) {
+  ScopeLock lock(mutex_cancel_type_);
+
+  CancelType old_type = cancel_type_; 
+  cancel_type_ = type;
+  return old_type;
+};
+
+CancelState UserThread::setCancelState(CancelState state) { 
+  ScopeLock lock(mutex_cancel_state_);
+
+  CancelState old_state = cancel_state_;
+  cancel_state_ = state; 
+  return old_state;
+};

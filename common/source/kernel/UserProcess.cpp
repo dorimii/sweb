@@ -117,9 +117,16 @@ void* UserProcess::allocateUserStack(){
   return (void*)((stack_vpn + 1) * PAGE_SIZE - sizeof(pointer));
 }
 
-ustl::vector<UserThread*> UserProcess::getThreadList() {
+UserThread* UserProcess::getUserThreadByTID(size_t tid) {
   ScopeLock lock(mutex_thread_list_);
-  return thread_list_;
+
+  for(auto thread : thread_list_){
+    if(thread->getTID() == tid){
+      return thread;
+    }
+  }
+  
+  return nullptr;
 }
 
 void UserProcess::markAsTerminating(){

@@ -21,5 +21,12 @@ class Syscall
     static void trace();
 
     static int pthread_create(size_t thread, size_t wrapper, size_t attr, size_t start_routine, size_t arg);
+    static void pthread_exit(size_t ret_val);
+    static int pthread_cancel(size_t tid);
+
+    static void checkCancelation();
+
+    static int pthread_setcancelstate(size_t type, size_t oldstate_ptr);
+    static int pthread_setcanceltype(size_t type, size_t oldtype_ptr);
 };
 

@@ -9,7 +9,11 @@ enum ThreadState{Running, Sleeping, ToBeDestroyed};
 enum SystemState {BOOTING, RUNNING, KPANIC};
 extern SystemState system_state;
 
+enum CancelType {PTHREAD_CANCEL_DEFERRED, PTHREAD_CANCEL_ASYNCHRONOUS};
+enum CancelState {PTHREAD_CANCEL_ENABLE, PTHREAD_CANCEL_DISABLE};
+
 class Thread;
+class UserProcess;
 class ArchThreadRegisters;
 class Loader;
 class Terminal;
@@ -113,7 +117,36 @@ class Thread
      */
     Lock* holding_lock_list_;
 
-    virtual bool isUserThread() const { return false; }
+    virtual UserProcess* getUserProcess() const {
+      return nullptr;
+    }
+
+    virtual bool isUserThread() const { 
+      return false; 
+    }
+
+    virtual CancelType getCancelType() const { 
+      return PTHREAD_CANCEL_DEFERRED;
+    };
+    virtual CancelType setCancelType(CancelType type) { 
+      (void) type; 
+      return PTHREAD_CANCEL_DEFERRED;
+    };
+
+    virtual CancelState getCancelState() const { 
+      return PTHREAD_CANCEL_DISABLE;
+    };
+    virtual CancelState setCancelState(CancelState state) { 
+      (void) state;
+      return PTHREAD_CANCEL_DISABLE;
+    };
+
+    virtual bool isToBeCanceled() const { 
+      return false; 
+    };
+    virtual void setToBeCanceled(bool state) { 
+      (void) state; 
+    };
 
   private:
     Thread(Thread const &src);

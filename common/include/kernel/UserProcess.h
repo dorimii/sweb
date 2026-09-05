@@ -43,8 +43,6 @@ class UserProcess
 
     void markAsTerminating();
 
-    ustl::vector<UserThread*> getThreadList();
-
     size_t pid_;
 
     Loader* loader_;
@@ -54,7 +52,9 @@ class UserProcess
 
     size_t getTid() {return max_tid_;}
     void incrementTid() {max_tid_++;}
-    Mutex mutex_thread_list_{"MUTEX_THREAD_LIST"};
+    Mutex mutex_thread_list_{"UserProcess::mutex_thread_list_"};
+
+    UserThread* getUserThreadByTID(size_t tid);
 
   private:
     int32 fd_;

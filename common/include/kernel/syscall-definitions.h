@@ -18,6 +18,16 @@
 #define sc_trace 252
 
 #define sc_pthread_create 253
+#define sc_pthread_exit 254
+#define sc_pthread_cancel 255
+#define sc_pthread_join 256
+#define sc_pthread_testcancel 257
+
+#define sc_pthread_setcancelstate 258
+#define sc_pthread_setcanceltype 259
+
+#define sc_sleep 260
+#define sc_nanosleep 261
 
 #define sc_tortillas_bootup 4094
 #define sc_tortillas_finished 4095

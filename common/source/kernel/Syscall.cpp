@@ -8,7 +8,6 @@
 #include "File.h"
 #include "Scheduler.h"
 #include "UserProcess.h"
-#include "UserThread.h"
 
 size_t Syscall::syscallException(size_t syscall_number, size_t arg1, size_t arg2, size_t arg3, size_t arg4, size_t arg5)
 {
@@ -54,6 +53,30 @@ size_t Syscall::syscallException(size_t syscall_number, size_t arg1, size_t arg2
     case sc_pthread_create:
       return_value = pthread_create(arg1, arg2, arg3, arg4, arg5);
       break;
+    case sc_pthread_exit:
+      pthread_exit(arg1);
+      break;
+    case sc_pthread_cancel:
+      return_value = pthread_cancel(arg1);
+      break;
+    case sc_pthread_testcancel:
+      //nothing yet
+      break;
+    case sc_pthread_join:
+      //nothing yet <- needs to have checkCancelation()
+      break;
+    case sc_pthread_setcancelstate:
+      return_value = pthread_setcancelstate(arg1, arg2);
+      break;
+    case sc_pthread_setcanceltype:
+      return_value = pthread_setcanceltype(arg1, arg2);
+      break;
+    case sc_sleep:
+      //nothing yet <- needs to have checkCancelation()
+      break;
+    case sc_nanosleep:
+      //nothing yet <- needs to have checkCancelation()
+      break;
     case sc_tortillas_bootup:
     case sc_tortillas_finished:
       return_value = 0;
@@ -62,6 +85,7 @@ size_t Syscall::syscallException(size_t syscall_number, size_t arg1, size_t arg2
       return_value = -1;
       kprintf("Syscall::syscallException: Unimplemented Syscall Number %zd\n", syscall_number);
   }
+
   return return_value;
 }
 
@@ -78,16 +102,17 @@ void Syscall::exit(size_t exit_code)
 {
   debug(SYSCALL, "Syscall::EXIT: called, exit_code: %zd\n", exit_code);
 
-  if(currentThread->isUserThread()){
-    UserProcess* process = ((UserThread*)currentThread)->getUserProcess();
-    if(process) process->removeRemainingThreads();
-  }
+  UserProcess* process = currentThread->getUserProcess();
+  if(process) process->removeRemainingThreads();
+
   currentThread->kill();
   assert(false && "This should never happen");
 }
 
 size_t Syscall::write(size_t fd, pointer buffer, size_t size)
 {
+  checkCancelation();
+
   //WARNING: this might fail if Kernel PageFaults are not handled
   if ((buffer >= USER_BREAK) || (buffer + size > USER_BREAK))
   {
@@ -111,6 +136,8 @@ size_t Syscall::write(size_t fd, pointer buffer, size_t size)
 
 size_t Syscall::read(size_t fd, pointer buffer, size_t count)
 {
+  checkCancelation();
+
   if ((buffer >= USER_BREAK) || (buffer + count > USER_BREAK))
   {
     return -1U;
@@ -123,10 +150,8 @@ size_t Syscall::read(size_t fd, pointer buffer, size_t count)
     Terminal* terminal = nullptr;
 
     //this doesn't! terminate a string with \0, gotta do that yourself
-    if(currentThread->isUserThread()){
-      UserProcess* process = ((UserThread*)currentThread)->getUserProcess();
-      if(process) terminal = process->getTerminal();
-    }
+    UserProcess* process = currentThread->getUserProcess();
+    if(process) terminal = process->getTerminal();
 
     if (!terminal) terminal = currentThread->getTerminal();
 
@@ -142,11 +167,15 @@ size_t Syscall::read(size_t fd, pointer buffer, size_t count)
 
 size_t Syscall::close(size_t fd)
 {
+  checkCancelation();
+
   return VfsSyscall::close(fd);
 }
 
 size_t Syscall::open(size_t path, size_t flags)
 {
+  checkCancelation();
+
   if (path >= USER_BREAK)
   {
     return -1U;
@@ -210,7 +239,7 @@ int Syscall::pthread_create(size_t thread, size_t wrapper, size_t attr, size_t s
     debug(SYSCALL, "Syscall::pthread_create: attr: %zd\n but should be null for now", attr);
   }
 
-  UserProcess* current_process = ((UserThread*)currentThread)->getUserProcess();
+  UserProcess* current_process = currentThread->getUserProcess();
 
   UserThread* new_thread = new UserThread(current_process, "pthread", current_process->loader_, (void*)wrapper, (void*)start_routine, (void*)arg);
   current_process->addThread(new_thread);
@@ -226,3 +255,74 @@ int Syscall::pthread_create(size_t thread, size_t wrapper, size_t attr, size_t s
   return 0;
 }
 
+void Syscall::pthread_exit(size_t ret_val){
+  UserProcess* process = currentThread->getUserProcess();
+  if(!process){
+    debug(SYSCALL, "PTHREAD_EXIT failed! Thread was without process!\n");
+    return;
+  }
+
+  // No removeThread needed
+  currentThread->kill(); // May be wrong ?!?
+  assert(false && "This should never happen - thread was killed!");
+
+  // handle return values
+  (void) ret_val;
+}
+
+int Syscall::pthread_cancel(size_t tid){
+  debug(SYSCALL, "PTHREAD_CANCEL WAS CALLED!\n");
+  UserProcess* process = currentThread->getUserProcess();
+  if(!process){
+    debug(SYSCALL, "PTHREAD_CANCEL failed! Thread was without process!\n");
+    return -1;
+  }
+
+  Thread* thread = process->getUserThreadByTID(tid);
+
+  if(!thread) return -1; //ESRCH
+
+  thread->setToBeCanceled(true);
+
+  return 0;
+}
+
+void Syscall::checkCancelation(){
+  if(currentThread->isToBeCanceled() && currentThread->getCancelState() == PTHREAD_CANCEL_ENABLE){
+    pthread_exit((size_t)-1);
+  }
+}
+
+int Syscall::pthread_setcancelstate(size_t state, size_t oldstate_ptr){
+  if(state != PTHREAD_CANCEL_ENABLE && state != PTHREAD_CANCEL_DISABLE){
+    return 22;
+  }
+
+  if(oldstate_ptr && (oldstate_ptr >= USER_BREAK || oldstate_ptr + sizeof(int) > USER_BREAK)){
+    return -1;
+  }
+
+  CancelState oldstate = currentThread->setCancelState((CancelState)state);
+  if(oldstate_ptr) {
+    *(int*)oldstate_ptr = oldstate;
+  }
+
+  return 0;
+}
+
+int Syscall::pthread_setcanceltype(size_t type, size_t oldstype_ptr){
+  if(type != PTHREAD_CANCEL_DEFERRED && type != PTHREAD_CANCEL_ASYNCHRONOUS){
+    return 22;
+  }
+
+  if(oldstype_ptr && (oldstype_ptr >= USER_BREAK || oldstype_ptr + sizeof(int) > USER_BREAK)){
+    return -1;
+  }
+
+  CancelType oldtype = currentThread->setCancelType((CancelType)type);
+  if(oldstype_ptr) {
+    *(int*)oldstype_ptr = oldtype;
+  }
+
+  return 0;
+}

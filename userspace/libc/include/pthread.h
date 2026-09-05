@@ -6,6 +6,15 @@
 extern "C" {
 #endif
 
+/* Cancellation */
+#define PTHREAD_CANCEL_ENABLE 0
+#define PTHREAD_CANCEL_DISABLE 1
+
+#define PTHREAD_CANCEL_DEFERRED 0
+#define PTHREAD_CANCEL_ASYNCHRONOUS 1
+
+#define PTHREAD_CANCELED ((void *) -1)
+
 //pthread typedefs
 typedef size_t pthread_t;
 typedef unsigned int pthread_attr_t;

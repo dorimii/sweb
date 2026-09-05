@@ -42,7 +42,7 @@ void pthread_exit(void *value_ptr)
  */
 int pthread_cancel(pthread_t thread)
 {
-  return -1;
+  return __syscall(sc_pthread_cancel, (size_t)thread, 0, 0, 0, 0);
 }
 
 /**
@@ -186,7 +186,11 @@ int pthread_spin_unlock(pthread_spinlock_t *lock)
  */
 int pthread_setcancelstate(int state, int *oldstate)
 {
-  return -1;
+  if(state != PTHREAD_CANCEL_ENABLE && state != PTHREAD_CANCEL_DISABLE){
+    return 22;
+  }
+
+  return __syscall(sc_pthread_setcancelstate, (size_t)state, (size_t)oldstate, 0, 0, 0);
 }
 
 /**
@@ -195,6 +199,10 @@ int pthread_setcancelstate(int state, int *oldstate)
  */
 int pthread_setcanceltype(int type, int *oldtype)
 {
-  return -1;
+  if(type != PTHREAD_CANCEL_DEFERRED && type != PTHREAD_CANCEL_ASYNCHRONOUS){
+    return 22;
+  }
+
+  return __syscall(sc_pthread_setcanceltype, (size_t)type, (size_t)oldtype, 0, 0, 0);
 }
 
